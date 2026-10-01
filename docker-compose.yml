@@ -1,0 +1,102 @@
+name: tradeloop
+
+x-app-env: &app-env
+  NODE_ENV: production
+  DB_HOST: postgres
+  DB_PORT: 5432
+  DB_USER: ${DB_USER:-tradeloop}
+  DB_PASSWORD: ${DB_PASSWORD:-tradeloop}
+  DB_NAME: ${DB_NAME:-tradeloop}
+  REDIS_HOST: redis
+  REDIS_PORT: 6379
+  JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?JWT_ACCESS_SECRET is required}
+  CORS_ORIGINS: ${CORS_ORIGINS:-*}
+  SWAGGER_ENABLED: ${SWAGGER_ENABLED:-true}
+  STORAGE_LOCAL_PATH: /app/storage
+
+x-app: &app
+  build: .
+  image: tradeloop-backend:local
+  environment: *app-env
+
+services:
+  postgres:
+    image: postgis/postgis:17-3.5
+    # postgis/postgis publishes amd64 only; Apple Silicon runs it under emulation.
+    platform: ${POSTGIS_PLATFORM:-linux/amd64}
+    environment:
+      POSTGRES_USER: ${DB_USER:-tradeloop}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-tradeloop}
+      POSTGRES_DB: ${DB_NAME:-tradeloop}
+    ports:
+      - '${POSTGRES_HOST_PORT:-5433}:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    command: ['redis-server', '--appendonly', 'yes']
+    ports:
+      - '${REDIS_HOST_PORT:-6380}:6379'
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  migrate:
+    <<: *app
+    profiles: ['app']
+    command: ['npm', 'run', 'migration:run:prod']
+    healthcheck:
+      disable: true
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    <<: *app
+    profiles: ['app']
+    command: ['node', 'dist/main.js']
+    ports:
+      - '${API_HOST_PORT:-3000}:3000'
+    volumes:
+      - uploads:/app/storage
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://localhost:3000/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  worker:
+    <<: *app
+    profiles: ['app']
+    command: ['node', 'dist/worker.js']
+    healthcheck:
+      disable: true
+    volumes:
+      - uploads:/app/storage
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  redisdata:
+  uploads:
