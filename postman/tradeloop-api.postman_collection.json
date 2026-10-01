@@ -1,0 +1,5522 @@
+{
+  "info": {
+    "name": "Tradeloop API",
+    "description": "Multi-tenant logistics operations and trucking marketplace API.\n\n**Setup**\n1. `docker compose up -d`, `npm run migration:run`, `npm run seed`, `npm run start:dev`.\n2. Run a request in **Auth** (e.g. *Login (shipper owner)*). Tokens are saved to collection variables and sent as a Bearer token on every request.\n3. Create requests save their ids (`customerId`, `tripId`, ...) so follow-up requests work without copy/paste.\n\n**Seeded accounts** (password = `{{password}}`): admin@tradeloop.local (platform admin), owner@luzonhaulers.local, dispatch@luzonhaulers.local, driver@luzonhaulers.local, owner@visayasfreight.local, driver@visayasfreight.local, owner@metrogoods.local, ops@metrogoods.local.\n\n**Envelope**: success `{ \"data\": ..., \"meta\": {...} }`; errors `{ \"statusCode\", \"code\", \"message\", \"errors\": [{ \"field\", \"messages\" }] }`.\n\n**Pagination**: `page` (default 1), `limit` (default 20, max 100), `sort` (endpoint-specific), `order` (ASC|DESC). Optional query params are included but disabled; tick them to use.\n\nSwagger UI: `{{host}}/api/docs` (when SWAGGER_ENABLED=true).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Rolling ISO timestamps for request bodies: {{now}}, {{in1d}}, {{in1d2h}}, ...",
+          "const iso = (ms) => new Date(Date.now() + ms).toISOString();",
+          "const H = 3600 * 1000, D = 24 * H;",
+          "pm.variables.set('now', iso(0));",
+          "pm.variables.set('in1d', iso(D));",
+          "pm.variables.set('in1d2h', iso(D + 2 * H));",
+          "pm.variables.set('in1d3h', iso(D + 3 * H));",
+          "pm.variables.set('in1d4h', iso(D + 4 * H));",
+          "pm.variables.set('in2d', iso(2 * D));",
+          "pm.variables.set('in2d4h', iso(2 * D + 4 * H));",
+          "pm.variables.set('in3d', iso(3 * D));",
+          "pm.variables.set('in7d', iso(7 * D));"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "host",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "baseUrl",
+      "value": "{{host}}/api/v1",
+      "type": "string"
+    },
+    {
+      "key": "password",
+      "value": "DevPassword123!",
+      "type": "string"
+    },
+    {
+      "key": "shipperEmail",
+      "value": "owner@metrogoods.local",
+      "type": "string"
+    },
+    {
+      "key": "carrierEmail",
+      "value": "owner@luzonhaulers.local",
+      "type": "string"
+    },
+    {
+      "key": "adminEmail",
+      "value": "admin@tradeloop.local",
+      "type": "string"
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "refreshToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "organizationId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "membershipId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "partnerOrganizationId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "customerId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "pickupLocationId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "deliveryLocationId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "vehicleId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "driverId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "orderId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "shipmentId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "loadId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "tripId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "stopId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "stopIds",
+      "value": "[]",
+      "type": "string"
+    },
+    {
+      "key": "vehiclePostingId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "loadPostingId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "offerId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "bookingId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "documentId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "notificationId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "adminOrganizationId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "description": "Public liveness/readiness probes. Not under `/api/v1`.",
+      "item": [
+        {
+          "name": "Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/health",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Liveness",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/health/live",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "health",
+                "live"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Readiness (Postgres + Redis)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host}}/health/ready",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "health",
+                "ready"
+              ]
+            },
+            "description": "Returns 503 `NOT_READY` when Postgres or Redis is unreachable.",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "description": "Login stores `accessToken`, `refreshToken` and `organizationId` in collection variables. Seeded accounts all use the `password` variable (SEED_PASSWORD, default `DevPassword123!`).",
+      "item": [
+        {
+          "name": "Register (new user + organization)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            },
+            "description": "Organization `type`: SHIPPER | TRUCKING_COMPANY | LOGISTICS_PROVIDER | BROKER | WAREHOUSE.\n\nPassword: 10-128 chars with upper, lower case letters and a digit.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"new.user.{{$timestamp}}@example.com\",\n  \"password\": \"StrongPass123\",\n  \"firstName\": \"Maria\",\n  \"lastName\": \"Santos\",\n  \"phone\": \"+639171234567\",\n  \"organization\": {\n    \"name\": \"Santos Logistics {{$timestamp}}\",\n    \"type\": \"SHIPPER\",\n    \"email\": \"ops@santoslogistics.example.com\",\n    \"phone\": \"+6328123456\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const body = pm.response.json();",
+                  "  const accessTokenVal = body?.data?.accessToken;",
+                  "  if (accessTokenVal) pm.collectionVariables.set('accessToken', accessTokenVal);",
+                  "  const refreshTokenVal = body?.data?.refreshToken;",
+                  "  if (refreshTokenVal) pm.collectionVariables.set('refreshToken', refreshTokenVal);",
+                  "  const organizationIdVal = body?.data?.organizationId;",
+                  "  if (organizationIdVal) pm.collectionVariables.set('organizationId', organizationIdVal);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login (shipper owner)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Seeded Metro Goods Trading owner. Optionally pass `organizationId` to choose the active organization.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{shipperEmail}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const body = pm.response.json();",
+                  "  const accessTokenVal = body?.data?.accessToken;",
+                  "  if (accessTokenVal) pm.collectionVariables.set('accessToken', accessTokenVal);",
+                  "  const refreshTokenVal = body?.data?.refreshToken;",
+                  "  if (refreshTokenVal) pm.collectionVariables.set('refreshToken', refreshTokenVal);",
+                  "  const organizationIdVal = body?.data?.organizationId;",
+                  "  if (organizationIdVal) pm.collectionVariables.set('organizationId', organizationIdVal);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login (carrier owner)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Seeded Luzon Haulers Inc. owner.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{carrierEmail}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const body = pm.response.json();",
+                  "  const accessTokenVal = body?.data?.accessToken;",
+                  "  if (accessTokenVal) pm.collectionVariables.set('accessToken', accessTokenVal);",
+                  "  const refreshTokenVal = body?.data?.refreshToken;",
+                  "  if (refreshTokenVal) pm.collectionVariables.set('refreshToken', refreshTokenVal);",
+                  "  const organizationIdVal = body?.data?.organizationId;",
+                  "  if (organizationIdVal) pm.collectionVariables.set('organizationId', organizationIdVal);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login (carrier dispatcher)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Seeded Luzon Haulers dispatcher.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"dispatch@luzonhaulers.local\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const body = pm.response.json();",
+                  "  const accessTokenVal = body?.data?.accessToken;",
+                  "  if (accessTokenVal) pm.collectionVariables.set('accessToken', accessTokenVal);",
+                  "  const refreshTokenVal = body?.data?.refreshToken;",
+                  "  if (refreshTokenVal) pm.collectionVariables.set('refreshToken', refreshTokenVal);",
+                  "  const organizationIdVal = body?.data?.organizationId;",
+                  "  if (organizationIdVal) pm.collectionVariables.set('organizationId', organizationIdVal);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login (driver)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Seeded Luzon Haulers driver.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"driver@luzonhaulers.local\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const body = pm.response.json();",
+                  "  const accessTokenVal = body?.data?.accessToken;",
+                  "  if (accessTokenVal) pm.collectionVariables.set('accessToken', accessTokenVal);",
+                  "  const refreshTokenVal = body?.data?.refreshToken;",
+                  "  if (refreshTokenVal) pm.collectionVariables.set('refreshToken', refreshTokenVal);",
+                  "  const organizationIdVal = body?.data?.organizationId;",
+                  "  if (organizationIdVal) pm.collectionVariables.set('organizationId', organizationIdVal);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login (platform admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Seeded platform admin (SEED_ADMIN_EMAIL).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const body = pm.response.json();",
+                  "  const accessTokenVal = body?.data?.accessToken;",
+                  "  if (accessTokenVal) pm.collectionVariables.set('accessToken', accessTokenVal);",
+                  "  const refreshTokenVal = body?.data?.refreshToken;",
+                  "  if (refreshTokenVal) pm.collectionVariables.set('refreshToken', refreshTokenVal);",
+                  "  const organizationIdVal = body?.data?.organizationId;",
+                  "  if (organizationIdVal) pm.collectionVariables.set('organizationId', organizationIdVal);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Refresh tokens",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/refresh",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "refresh"
+              ]
+            },
+            "description": "Refresh tokens rotate: the old one is revoked, and reusing it revokes the session family.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const body = pm.response.json();",
+                  "  const accessTokenVal = body?.data?.accessToken;",
+                  "  if (accessTokenVal) pm.collectionVariables.set('accessToken', accessTokenVal);",
+                  "  const refreshTokenVal = body?.data?.refreshToken;",
+                  "  if (refreshTokenVal) pm.collectionVariables.set('refreshToken', refreshTokenVal);",
+                  "  const organizationIdVal = body?.data?.organizationId;",
+                  "  if (organizationIdVal) pm.collectionVariables.set('organizationId', organizationIdVal);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Me",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
+            },
+            "description": "Current user, active organization, role and organization memberships."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const body = pm.response.json();",
+                  "  const userIdVal = body?.data?.user?.id;",
+                  "  if (userIdVal) pm.collectionVariables.set('userId', userIdVal);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Switch organization",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/switch-organization",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "switch-organization"
+              ]
+            },
+            "description": "Issues new tokens bound to another organization the user belongs to.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"organizationId\": \"{{organizationId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const body = pm.response.json();",
+                  "  const accessTokenVal = body?.data?.accessToken;",
+                  "  if (accessTokenVal) pm.collectionVariables.set('accessToken', accessTokenVal);",
+                  "  const refreshTokenVal = body?.data?.refreshToken;",
+                  "  if (refreshTokenVal) pm.collectionVariables.set('refreshToken', refreshTokenVal);",
+                  "  const organizationIdVal = body?.data?.organizationId;",
+                  "  if (organizationIdVal) pm.collectionVariables.set('organizationId', organizationIdVal);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Change password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/change-password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "change-password"
+              ]
+            },
+            "description": "Returns 204. Revokes existing refresh sessions.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"{{password}}\",\n  \"newPassword\": \"NewStrongPass123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "logout"
+              ]
+            },
+            "description": "Returns 204."
+          }
+        },
+        {
+          "name": "Logout all sessions",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/logout-all",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "logout-all"
+              ]
+            },
+            "description": "Returns 204."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "description": "",
+      "item": [
+        {
+          "name": "Get my profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/users/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "me"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const body = pm.response.json();",
+                  "  const userIdVal = body?.data?.id;",
+                  "  if (userIdVal) pm.collectionVariables.set('userId', userIdVal);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update my profile",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/users/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "me"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Angela\",\n  \"lastName\": \"Lim\",\n  \"phone\": \"+639171234567\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Organizations",
+      "description": "Endpoints scoped to the active organization.",
+      "item": [
+        {
+          "name": "Get current organization",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/organizations/current",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "organizations",
+                "current"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update current organization",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/organizations/current",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "organizations",
+                "current"
+              ]
+            },
+            "description": "**Roles:** OWNER, ADMIN",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Metro Goods Trading\",\n  \"email\": \"hello@metrogoods.local\",\n  \"phone\": \"+6328123456\",\n  \"metadata\": {}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Organization directory",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/organizations/directory",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "organizations",
+                "directory"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number (default 1)",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Page size (default 20, max 100)",
+                  "disabled": true
+                },
+                {
+                  "key": "sort",
+                  "value": "name",
+                  "description": "One of: name, createdAt",
+                  "disabled": true
+                },
+                {
+                  "key": "order",
+                  "value": "DESC",
+                  "description": "ASC | DESC (default DESC)",
+                  "disabled": true
+                },
+                {
+                  "key": "type",
+                  "value": "TRUCKING_COMPANY",
+                  "description": "SHIPPER | TRUCKING_COMPANY | LOGISTICS_PROVIDER | BROKER | WAREHOUSE | PLATFORM_ADMIN",
+                  "disabled": true
+                },
+                {
+                  "key": "search",
+                  "value": "haul",
+                  "description": "Name search",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Memberships",
+          "description": "",
+          "item": [
+            {
+              "name": "List members",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/organizations/current/memberships",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "organizations",
+                    "current",
+                    "memberships"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1",
+                      "description": "Page number (default 1)",
+                      "disabled": true
+                    },
+                    {
+                      "key": "limit",
+                      "value": "20",
+                      "description": "Page size (default 20, max 100)",
+                      "disabled": true
+                    },
+                    {
+                      "key": "sort",
+                      "value": "createdAt",
+                      "description": "One of: createdAt, role",
+                      "disabled": true
+                    },
+                    {
+                      "key": "order",
+                      "value": "DESC",
+                      "description": "ASC | DESC (default DESC)",
+                      "disabled": true
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Add member",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/organizations/current/memberships",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "organizations",
+                    "current",
+                    "memberships"
+                  ]
+                },
+                "description": "**Roles:** OWNER, ADMIN\n\nAdds an existing user by email, or creates the user when `firstName`, `lastName` and `password` are given.\n\n`role`: OWNER | ADMIN | OPERATIONS_MANAGER | DISPATCHER | DRIVER_MANAGER | DRIVER | FINANCE | VIEWER",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"finance.{{$timestamp}}@metrogoods.local\",\n  \"role\": \"FINANCE\",\n  \"firstName\": \"Rina\",\n  \"lastName\": \"Cruz\",\n  \"password\": \"StrongPass123\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                      "  const body = pm.response.json();",
+                      "  const membershipIdVal = body?.data?.id;",
+                      "  if (membershipIdVal) pm.collectionVariables.set('membershipId', membershipIdVal);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Update member",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/organizations/current/memberships/{{membershipId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "organizations",
+                    "current",
+                    "memberships",
+                    "{{membershipId}}"
+                  ]
+                },
+                "description": "**Roles:** OWNER, ADMIN\n\n`status`: ACTIVE | SUSPENDED",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"role\": \"VIEWER\",\n  \"status\": \"ACTIVE\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Remove member",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/organizations/current/memberships/{{membershipId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "organizations",
+                    "current",
+                    "memberships",
+                    "{{membershipId}}"
+                  ]
+                },
+                "description": "**Roles:** OWNER, ADMIN\n\nReturns 204."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Partners",
+          "description": "Partnerships control `PARTNERS_ONLY` marketplace visibility.",
+          "item": [
+            {
+              "name": "List partners",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/organizations/current/partners",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "organizations",
+                    "current",
+                    "partners"
+                  ]
+                },
+                "description": "Stores the first partner organization id as `partnerOrganizationId`."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 200) {",
+                      "  const first = (pm.response.json().data || [])[0];",
+                      "  if (first?.partner) pm.collectionVariables.set('partnerOrganizationId', first.partner.id);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Add partner",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/organizations/current/partners",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "organizations",
+                    "current",
+                    "partners"
+                  ]
+                },
+                "description": "**Roles:** OWNER, ADMIN\n\nSeeded codes: LUZONHAUL, VISFREIGHT, METROGOODS.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"partnerOrganizationCode\": \"LUZONHAUL\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Remove partner",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/organizations/current/partners/{{partnerOrganizationId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "organizations",
+                    "current",
+                    "partners",
+                    "{{partnerOrganizationId}}"
+                  ]
+                },
+                "description": "**Roles:** OWNER, ADMIN\n\nReturns 204."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Customers",
+      "description": "Write **Roles:** OWNER, ADMIN, OPERATIONS_MANAGER, DISPATCHER, FINANCE",
+      "item": [
+        {
+          "name": "Create customer",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/customers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "customers"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Southern Retail Corp.\",\n  \"companyName\": \"Southern Retail Corporation\",\n  \"email\": \"purchasing@southernretail.example.com\",\n  \"phone\": \"+6328765432\",\n  \"taxId\": \"123-456-789-000\",\n  \"billingAddress\": \"123 Ayala Ave, Makati City, Metro Manila\",\n  \"notes\": \"Net 30 terms\",\n  \"status\": \"ACTIVE\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const body = pm.response.json();",
+                  "  const customerIdVal = body?.data?.id;",
+                  "  if (customerIdVal) pm.collectionVariables.set('customerId', customerIdVal);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List customers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/customers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "customers"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number (default 1)",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Page size (default 20, max 100)",
+                  "disabled": true
+                },
+                {
+                  "key": "sort",
+                  "value": "createdAt",
+                  "description": "One of: createdAt, name",
+                  "disabled": true
+                },
+                {
+                  "key": "order",
+                  "value": "DESC",
+                  "description": "ASC | DESC (default DESC)",
+                  "disabled": true
+                },
+                {
+                  "key": "search",
+                  "value": "retail",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "status",
+                  "value": "ACTIVE",
+                  "description": "ACTIVE | INACTIVE",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get customer",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/customers/{{customerId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "customers",
+                "{{customerId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update customer",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/customers/{{customerId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "customers",
+                "{{customerId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"notes\": \"Net 45 terms\",\n  \"status\": \"ACTIVE\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Delete customer",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/customers/{{customerId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "customers",
+                "{{customerId}}"
+              ]
+            },
+            "description": "Returns 204."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Locations",
+      "description": "Write **Roles:** OWNER, ADMIN, OPERATIONS_MANAGER, DISPATCHER, DRIVER_MANAGER, PLATFORM_ADMIN\n\n`type`: WAREHOUSE | DEPOT | CUSTOMER | PICKUP | DELIVERY | OTHER",
+      "item": [
+        {
+          "name": "Create pickup location",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/locations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "locations"
+              ]
+            },
+            "description": "Stores the id as `pickupLocationId`. Platform admins may pass `\"shared\": true`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Valenzuela Warehouse\",\n  \"addressLine\": \"Valenzuela Warehouse compound\",\n  \"barangay\": \"Poblacion\",\n  \"city\": \"Valenzuela\",\n  \"province\": \"Metro Manila\",\n  \"postalCode\": \"1000\",\n  \"country\": \"PH\",\n  \"latitude\": 14.7011,\n  \"longitude\": 120.983,\n  \"type\": \"WAREHOUSE\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const body = pm.response.json();",
+                  "  const pickupLocationIdVal = body?.data?.id;",
+                  "  if (pickupLocationIdVal) pm.collectionVariables.set('pickupLocationId', pickupLocationIdVal);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create delivery location",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/locations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "locations"
+              ]
+            },
+            "description": "Stores the id as `deliveryLocationId`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Batangas Distribution Center\",\n  \"addressLine\": \"Batangas Distribution Center compound\",\n  \"barangay\": \"Poblacion\",\n  \"city\": \"Batangas City\",\n  \"province\": \"Batangas\",\n  \"postalCode\": \"1000\",\n  \"country\": \"PH\",\n  \"latitude\": 13.7565,\n  \"longitude\": 121.0583,\n  \"type\": \"DELIVERY\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const body = pm.response.json();",
+                  "  const deliveryLocationIdVal = body?.data?.id;",
+                  "  if (deliveryLocationIdVal) pm.collectionVariables.set('deliveryLocationId', deliveryLocationIdVal);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List locations",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/locations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "locations"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number (default 1)",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Page size (default 20, max 100)",
+                  "disabled": true
+                },
+                {
+                  "key": "sort",
+                  "value": "createdAt",
+                  "description": "One of: createdAt, name, city",
+                  "disabled": true
+                },
+                {
+                  "key": "order",
+                  "value": "DESC",
+                  "description": "ASC | DESC (default DESC)",
+                  "disabled": true
+                },
+                {
+                  "key": "type",
+                  "value": "WAREHOUSE",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "city",
+                  "value": "Valenzuela",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "province",
+                  "value": "Metro Manila",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "search",
+                  "value": "warehouse",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "includeShared",
+                  "value": "true",
+                  "description": "Include platform-shared locations (default true)",
+                  "disabled": true
+                },
+                {
+                  "key": "lat",
+                  "value": "14.5995",
+                  "description": "Near search latitude",
+                  "disabled": true
+                },
+                {
+                  "key": "lng",
+                  "value": "120.9842",
+                  "description": "Near search longitude",
+                  "disabled": true
+                },
+                {
+                  "key": "radiusKm",
+                  "value": "50",
+                  "description": "0.1 - 2000",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get location",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/locations/{{pickupLocationId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "locations",
+                "{{pickupLocationId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update location",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/locations/{{pickupLocationId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "locations",
+                "{{pickupLocationId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Valenzuela Main Warehouse\",\n  \"postalCode\": \"1440\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Delete location",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/locations/{{deliveryLocationId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "locations",
+                "{{deliveryLocationId}}"
+              ]
+            },
+            "description": "Returns 204."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Vehicles",
+      "description": "Write **Roles:** OWNER, ADMIN, OPERATIONS_MANAGER, DRIVER_MANAGER\n\n`vehicleType`: MOTORCYCLE | SEDAN | VAN | L300 | 4W_TRUCK | 6W_TRUCK | 10W_TRUCK | TRACTOR_HEAD | TRAILER | REFRIGERATED | OTHER",
+      "item": [
+        {
+          "name": "Create vehicle",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vehicles",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vehicles"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"plateNumber\": \"NBC-{{$randomInt}}\",\n  \"vehicleType\": \"6W_TRUCK\",\n  \"make\": \"Isuzu\",\n  \"model\": \"Forward\",\n  \"year\": 2022,\n  \"maxWeightKg\": 7000,\n  \"maxVolumeM3\": 32,\n  \"gpsDeviceId\": \"GPS-0001\",\n  \"metadata\": {}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const body = pm.response.json();",
+                  "  const vehicleIdVal = body?.data?.id;",
+                  "  if (vehicleIdVal) pm.collectionVariables.set('vehicleId', vehicleIdVal);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List vehicles",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/vehicles",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vehicles"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number (default 1)",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Page size (default 20, max 100)",
+                  "disabled": true
+                },
+                {
+                  "key": "sort",
+                  "value": "createdAt",
+                  "description": "One of: createdAt, plateNumber, maxWeightKg",
+                  "disabled": true
+                },
+                {
+                  "key": "order",
+                  "value": "DESC",
+                  "description": "ASC | DESC (default DESC)",
+                  "disabled": true
+                },
+                {
+                  "key": "status",
+                  "value": "AVAILABLE",
+                  "description": "AVAILABLE | IN_USE | MAINTENANCE | INACTIVE",
+                  "disabled": true
+                },
+                {
+                  "key": "vehicleType",
+                  "value": "6W_TRUCK",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "search",
+                  "value": "NBC",
+                  "description": "Plate number search",
+                  "disabled": true
+                },
+                {
+                  "key": "minWeightKg",
+                  "value": "1000",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get vehicle",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/vehicles/{{vehicleId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vehicles",
+                "{{vehicleId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update vehicle",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vehicles/{{vehicleId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vehicles",
+                "{{vehicleId}}"
+              ]
+            },
+            "description": "`status`: AVAILABLE | MAINTENANCE | INACTIVE (IN_USE is controlled by trip dispatch/completion).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"AVAILABLE\",\n  \"maxWeightKg\": 7500\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Delete vehicle",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/vehicles/{{vehicleId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vehicles",
+                "{{vehicleId}}"
+              ]
+            },
+            "description": "Returns 204."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Drivers",
+      "description": "Write **Roles:** OWNER, ADMIN, OPERATIONS_MANAGER, DRIVER_MANAGER",
+      "item": [
+        {
+          "name": "Create driver",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/drivers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "drivers"
+              ]
+            },
+            "description": "Optional `userId` links the driver to a member user account (role DRIVER) for mobile tracking.\n\n`status`: ACTIVE | INACTIVE | SUSPENDED",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Juan\",\n  \"lastName\": \"Dela Cruz\",\n  \"phone\": \"+639181234567\",\n  \"licenseNumber\": \"N01-23-{{$randomInt}}\",\n  \"licenseExpiry\": \"2028-12-31\",\n  \"status\": \"ACTIVE\",\n  \"metadata\": {}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const body = pm.response.json();",
+                  "  const driverIdVal = body?.data?.id;",
+                  "  if (driverIdVal) pm.collectionVariables.set('driverId', driverIdVal);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List drivers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/drivers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "drivers"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number (default 1)",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Page size (default 20, max 100)",
+                  "disabled": true
+                },
+                {
+                  "key": "sort",
+                  "value": "createdAt",
+                  "description": "One of: createdAt, lastName",
+                  "disabled": true
+                },
+                {
+                  "key": "order",
+                  "value": "DESC",
+                  "description": "ASC | DESC (default DESC)",
+                  "disabled": true
+                },
+                {
+                  "key": "status",
+                  "value": "ACTIVE",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "search",
+                  "value": "juan",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get driver",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/drivers/{{driverId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "drivers",
+                "{{driverId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update driver",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/drivers/{{driverId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "drivers",
+                "{{driverId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"+639189876543\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Delete driver",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/drivers/{{driverId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "drivers",
+                "{{driverId}}"
+              ]
+            },
+            "description": "Returns 204."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Orders",
+      "description": "Write **Roles:** OWNER, ADMIN, OPERATIONS_MANAGER, DISPATCHER\n\nStatus: DRAFT → CONFIRMED → PROCESSING → IN_TRANSIT → COMPLETED (or CANCELLED).",
+      "item": [
+        {
+          "name": "Create order",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ]
+            },
+            "description": "`confirm: true` creates the order directly in CONFIRMED status.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": \"{{customerId}}\",\n  \"externalReference\": \"PO-{{$randomInt}}\",\n  \"requestedPickupAt\": \"{{in1d}}\",\n  \"requestedDeliveryAt\": \"{{in2d}}\",\n  \"notes\": \"Handle with care\",\n  \"confirm\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const body = pm.response.json();",
+                  "  const orderIdVal = body?.data?.id;",
+                  "  if (orderIdVal) pm.collectionVariables.set('orderId', orderIdVal);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List orders",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number (default 1)",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Page size (default 20, max 100)",
+                  "disabled": true
+                },
+                {
+                  "key": "sort",
+                  "value": "createdAt",
+                  "description": "One of: createdAt, orderNumber, requestedPickupAt",
+                  "disabled": true
+                },
+                {
+                  "key": "order",
+                  "value": "DESC",
+                  "description": "ASC | DESC (default DESC)",
+                  "disabled": true
+                },
+                {
+                  "key": "from",
+                  "value": "{{now}}",
+                  "description": "ISO date-time lower bound",
+                  "disabled": true
+                },
+                {
+                  "key": "to",
+                  "value": "{{in7d}}",
+                  "description": "ISO date-time upper bound",
+                  "disabled": true
+                },
+                {
+                  "key": "dateField",
+                  "value": "createdAt",
+                  "description": "createdAt | requestedPickupAt | requestedDeliveryAt",
+                  "disabled": true
+                },
+                {
+                  "key": "status",
+                  "value": "DRAFT",
+                  "description": "DRAFT | CONFIRMED | PROCESSING | IN_TRANSIT | COMPLETED | CANCELLED",
+                  "disabled": true
+                },
+                {
+                  "key": "customerId",
+                  "value": "{{customerId}}",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "orderNumber",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "externalReference",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get order",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/orders/{{orderId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                "{{orderId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update order",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders/{{orderId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                "{{orderId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"notes\": \"Updated delivery instructions\",\n  \"requestedDeliveryAt\": \"{{in3d}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Confirm order",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/orders/{{orderId}}/confirm",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                "{{orderId}}",
+                "confirm"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Cancel order",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders/{{orderId}}/cancel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                "{{orderId}}",
+                "cancel"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Customer request\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Delete order",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/orders/{{orderId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                "{{orderId}}"
+              ]
+            },
+            "description": "Returns 204."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Shipments",
+      "description": "Write **Roles:** OWNER, ADMIN, OPERATIONS_MANAGER, DISPATCHER\n\nStatus: PENDING | PLANNED | ASSIGNED | PICKED_UP | IN_TRANSIT | DELIVERED | FAILED | CANCELLED",
+      "item": [
+        {
+          "name": "Create shipment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/shipments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "shipments"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": \"{{orderId}}\",\n  \"pickupLocationId\": \"{{pickupLocationId}}\",\n  \"deliveryLocationId\": \"{{deliveryLocationId}}\",\n  \"pickupWindowStart\": \"{{in1d}}\",\n  \"pickupWindowEnd\": \"{{in1d4h}}\",\n  \"deliveryWindowStart\": \"{{in2d}}\",\n  \"deliveryWindowEnd\": \"{{in2d4h}}\",\n  \"cargoDescription\": \"Packaged consumer goods\",\n  \"specialInstructions\": \"Call receiver 30 minutes before arrival\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const body = pm.response.json();",
+                  "  const shipmentIdVal = body?.data?.id;",
+                  "  if (shipmentIdVal) pm.collectionVariables.set('shipmentId', shipmentIdVal);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List shipments",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/shipments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "shipments"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number (default 1)",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Page size (default 20, max 100)",
+                  "disabled": true
+                },
+                {
+                  "key": "sort",
+                  "value": "createdAt",
+                  "description": "One of: createdAt, pickupWindowStart",
+                  "disabled": true
+                },
+                {
+                  "key": "order",
+                  "value": "DESC",
+                  "description": "ASC | DESC (default DESC)",
+                  "disabled": true
+                },
+                {
+                  "key": "from",
+                  "value": "{{now}}",
+                  "description": "ISO date-time lower bound",
+                  "disabled": true
+                },
+                {
+                  "key": "to",
+                  "value": "{{in7d}}",
+                  "description": "ISO date-time upper bound",
+                  "disabled": true
+                },
+                {
+                  "key": "status",
+                  "value": "PENDING",
+                  "description": "PENDING | PLANNED | ASSIGNED | PICKED_UP | IN_TRANSIT | DELIVERED | FAILED | CANCELLED",
+                  "disabled": true
+                },
+                {
+                  "key": "orderId",
+                  "value": "{{orderId}}",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "shipmentNumber",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get shipment",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/shipments/{{shipmentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "shipments",
+                "{{shipmentId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update shipment",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/shipments/{{shipmentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "shipments",
+                "{{shipmentId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"specialInstructions\": \"Use loading dock 3\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Plan shipment",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/shipments/{{shipmentId}}/plan",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "shipments",
+                "{{shipmentId}}",
+                "plan"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Cancel shipment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/shipments/{{shipmentId}}/cancel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "shipments",
+                "{{shipmentId}}",
+                "cancel"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Order cancelled\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Mark shipment failed",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/shipments/{{shipmentId}}/fail",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "shipments",
+                "{{shipmentId}}",
+                "fail"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Receiver unavailable\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Delete shipment",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/shipments/{{shipmentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "shipments",
+                "{{shipmentId}}"
+              ]
+            },
+            "description": "Returns 204."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Loads",
+      "description": "Write **Roles:** OWNER, ADMIN, OPERATIONS_MANAGER, DISPATCHER\n\nStatus: PENDING | ASSIGNED | IN_TRANSIT | DELIVERED | CANCELLED",
+      "item": [
+        {
+          "name": "Create load",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/loads",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "loads"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"shipmentId\": \"{{shipmentId}}\",\n  \"description\": \"120 boxes of canned goods\",\n  \"cargoType\": \"GENERAL\",\n  \"weightKg\": 2500,\n  \"volumeM3\": 12,\n  \"quantity\": 120,\n  \"unit\": \"boxes\",\n  \"requiredVehicleType\": \"6W_TRUCK\",\n  \"temperatureControlled\": false,\n  \"hazardous\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const body = pm.response.json();",
+                  "  const loadIdVal = body?.data?.id;",
+                  "  if (loadIdVal) pm.collectionVariables.set('loadId', loadIdVal);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List loads",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/loads",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "loads"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number (default 1)",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Page size (default 20, max 100)",
+                  "disabled": true
+                },
+                {
+                  "key": "sort",
+                  "value": "createdAt",
+                  "description": "One of: createdAt, weightKg",
+                  "disabled": true
+                },
+                {
+                  "key": "order",
+                  "value": "DESC",
+                  "description": "ASC | DESC (default DESC)",
+                  "disabled": true
+                },
+                {
+                  "key": "status",
+                  "value": "PENDING",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "shipmentId",
+                  "value": "{{shipmentId}}",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "cargoType",
+                  "value": "GENERAL",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "requiredVehicleType",
+                  "value": "6W_TRUCK",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "minWeightKg",
+                  "value": "0",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "maxWeightKg",
+                  "value": "10000",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get load",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/loads/{{loadId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "loads",
+                "{{loadId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update load",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/loads/{{loadId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "loads",
+                "{{loadId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"weightKg\": 2600,\n  \"quantity\": 125\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Cancel load",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/loads/{{loadId}}/cancel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "loads",
+                "{{loadId}}",
+                "cancel"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete load",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/loads/{{loadId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "loads",
+                "{{loadId}}"
+              ]
+            },
+            "description": "Returns 204."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Trips",
+      "description": "Write **Roles:** OWNER, ADMIN, OPERATIONS_MANAGER, DISPATCHER, DRIVER_MANAGER; start/complete/arrive/depart also allow DRIVER.\n\nStatus: DRAFT | OPEN | PLANNED | DISPATCHED | IN_PROGRESS | COMPLETED | CANCELLED",
+      "item": [
+        {
+          "name": "Create trip",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/trips",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips"
+              ]
+            },
+            "description": "`maxWeightKg` defaults to the vehicle maximum and is required when no vehicle is set.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"vehicleId\": \"{{vehicleId}}\",\n  \"driverId\": \"{{driverId}}\",\n  \"originLocationId\": \"{{pickupLocationId}}\",\n  \"destinationLocationId\": \"{{deliveryLocationId}}\",\n  \"scheduledDepartureAt\": \"{{in1d}}\",\n  \"scheduledArrivalAt\": \"{{in1d4h}}\",\n  \"maxWeightKg\": 7000,\n  \"maxVolumeM3\": 32,\n  \"isMarketplaceVisible\": true,\n  \"notes\": \"Manila to Batangas run\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const body = pm.response.json();",
+                  "  const tripIdVal = body?.data?.id;",
+                  "  if (tripIdVal) pm.collectionVariables.set('tripId', tripIdVal);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List trips",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/trips",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number (default 1)",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Page size (default 20, max 100)",
+                  "disabled": true
+                },
+                {
+                  "key": "sort",
+                  "value": "scheduledDepartureAt",
+                  "description": "One of: scheduledDepartureAt, createdAt, tripNumber",
+                  "disabled": true
+                },
+                {
+                  "key": "order",
+                  "value": "DESC",
+                  "description": "ASC | DESC (default DESC)",
+                  "disabled": true
+                },
+                {
+                  "key": "from",
+                  "value": "{{now}}",
+                  "description": "ISO date-time lower bound",
+                  "disabled": true
+                },
+                {
+                  "key": "to",
+                  "value": "{{in7d}}",
+                  "description": "ISO date-time upper bound",
+                  "disabled": true
+                },
+                {
+                  "key": "status",
+                  "value": "PLANNED",
+                  "description": "DRAFT | OPEN | PLANNED | DISPATCHED | IN_PROGRESS | COMPLETED | CANCELLED",
+                  "disabled": true
+                },
+                {
+                  "key": "vehicleId",
+                  "value": "{{vehicleId}}",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "driverId",
+                  "value": "{{driverId}}",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "originLocationId",
+                  "value": "{{pickupLocationId}}",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "destinationLocationId",
+                  "value": "{{deliveryLocationId}}",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "isMarketplaceVisible",
+                  "value": "true",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get trip",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/trips/{{tripId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips",
+                "{{tripId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update trip",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/trips/{{tripId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips",
+                "{{tripId}}"
+              ]
+            },
+            "description": "Only in DRAFT/OPEN/PLANNED. Status changes use the action endpoints.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"notes\": \"Leave before 6AM to avoid traffic\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Delete trip",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/trips/{{tripId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips",
+                "{{tripId}}"
+              ]
+            },
+            "description": "Returns 204."
+          }
+        },
+        {
+          "name": "Lifecycle",
+          "description": "",
+          "item": [
+            {
+              "name": "Open trip",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/trips/{{tripId}}/open",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "trips",
+                    "{{tripId}}",
+                    "open"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Plan trip",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/trips/{{tripId}}/plan",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "trips",
+                    "{{tripId}}",
+                    "plan"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Dispatch trip",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/trips/{{tripId}}/dispatch",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "trips",
+                    "{{tripId}}",
+                    "dispatch"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Start trip",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/trips/{{tripId}}/start",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "trips",
+                    "{{tripId}}",
+                    "start"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Complete trip",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/trips/{{tripId}}/complete",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "trips",
+                    "{{tripId}}",
+                    "complete"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Cancel trip",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/trips/{{tripId}}/cancel",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "trips",
+                    "{{tripId}}",
+                    "cancel"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reason\": \"Vehicle breakdown\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Loads",
+          "description": "",
+          "item": [
+            {
+              "name": "List trip loads",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/trips/{{tripId}}/loads",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "trips",
+                    "{{tripId}}",
+                    "loads"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Assign load to trip",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/trips/{{tripId}}/loads/{{loadId}}/assign",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "trips",
+                    "{{tripId}}",
+                    "loads",
+                    "{{loadId}}",
+                    "assign"
+                  ]
+                },
+                "description": "All fields optional: `pickupStopId`, `dropoffStopId`, `pickupLocationId`, `dropoffLocationId`. Defaults to the shipment pickup/delivery locations (stops auto-created).",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Unassign load from trip",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/trips/{{tripId}}/loads/{{loadId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "trips",
+                    "{{tripId}}",
+                    "loads",
+                    "{{loadId}}"
+                  ]
+                },
+                "description": "Returns 204."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Stops",
+          "description": "`type` on create: PICKUP | DROPOFF | WAYPOINT",
+          "item": [
+            {
+              "name": "List stops",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/trips/{{tripId}}/stops",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "trips",
+                    "{{tripId}}",
+                    "stops"
+                  ]
+                },
+                "description": "Stores the first stop as `stopId` and all ids (in order) as `stopIds`."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 200) {",
+                      "  const stops = pm.response.json().data || [];",
+                      "  if (stops[0]) pm.collectionVariables.set('stopId', stops[0].id);",
+                      "  pm.collectionVariables.set('stopIds', JSON.stringify(stops.map((s) => s.id)));",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Add stop",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/trips/{{tripId}}/stops",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "trips",
+                    "{{tripId}}",
+                    "stops"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"locationId\": \"{{pickupLocationId}}\",\n  \"type\": \"WAYPOINT\",\n  \"plannedArrivalAt\": \"{{in1d2h}}\",\n  \"plannedDepartureAt\": \"{{in1d3h}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                      "  const body = pm.response.json();",
+                      "  const stopIdVal = body?.data?.id;",
+                      "  if (stopIdVal) pm.collectionVariables.set('stopId', stopIdVal);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Reorder stops",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/trips/{{tripId}}/stops/order",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "trips",
+                    "{{tripId}}",
+                    "stops",
+                    "order"
+                  ]
+                },
+                "description": "Send every stop id in the new order (at least 2). Run **List stops** first to fill `stopIds`.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"stopIds\": {{stopIds}}\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Update stop",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/trips/{{tripId}}/stops/{{stopId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "trips",
+                    "{{tripId}}",
+                    "stops",
+                    "{{stopId}}"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"plannedArrivalAt\": \"{{in1d2h}}\",\n  \"plannedDepartureAt\": \"{{in1d3h}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Delete stop",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/trips/{{tripId}}/stops/{{stopId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "trips",
+                    "{{tripId}}",
+                    "stops",
+                    "{{stopId}}"
+                  ]
+                },
+                "description": "Returns 204."
+              }
+            },
+            {
+              "name": "Arrive at stop",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/trips/{{tripId}}/stops/{{stopId}}/arrive",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "trips",
+                    "{{tripId}}",
+                    "stops",
+                    "{{stopId}}",
+                    "arrive"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Depart from stop",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/trips/{{tripId}}/stops/{{stopId}}/depart",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "trips",
+                    "{{tripId}}",
+                    "stops",
+                    "{{stopId}}",
+                    "depart"
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Tracking",
+      "description": "Realtime updates use Socket.IO namespace `/realtime` with `{ auth: { token } }`; emit `trip.subscribe { tripId }`. Events: `vehicle.location.updated`, `trip.status.updated`, `trip.eta.updated`, `notification.created`. (Socket.IO requests are not part of this collection.)",
+      "item": [
+        {
+          "name": "Ingest GPS position",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tracking/location",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tracking",
+                "location"
+              ]
+            },
+            "description": "**Roles:** OWNER, ADMIN, OPERATIONS_MANAGER, DISPATCHER, DRIVER_MANAGER, DRIVER\n\nReturns 202. Drivers may only report for their assigned active trip. `tripId` defaults to the vehicle's active trip.\n\n`source`: DRIVER_APP | GPS_DEVICE | MANUAL | INTEGRATION",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"vehicleId\": \"{{vehicleId}}\",\n  \"tripId\": \"{{tripId}}\",\n  \"latitude\": 14.5995,\n  \"longitude\": 120.9842,\n  \"speedKph\": 45,\n  \"heading\": 180,\n  \"accuracyMeters\": 10,\n  \"recordedAt\": \"{{now}}\",\n  \"source\": \"DRIVER_APP\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Trip current position",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/tracking/trips/{{tripId}}/current",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tracking",
+                "trips",
+                "{{tripId}}",
+                "current"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Trip position history",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/tracking/trips/{{tripId}}/history",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tracking",
+                "trips",
+                "{{tripId}}",
+                "history"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "{{now}}",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "to",
+                  "value": "{{in1d}}",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "500",
+                  "description": "Default 500, max 1000",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Fleet current positions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/tracking/fleet/current",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tracking",
+                "fleet",
+                "current"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Marketplace",
+      "description": "Write **Roles:** OWNER, ADMIN, OPERATIONS_MANAGER, DISPATCHER\n\nTypical flow: carrier publishes truck capacity, shipper publishes a load, either side sends an offer, the other side accepts (creates a booking and assigns the load to the carrier trip).\n\n`visibility`: NETWORK | PARTNERS_ONLY | PRIVATE",
+      "item": [
+        {
+          "name": "Trucks",
+          "description": "",
+          "item": [
+            {
+              "name": "Create truck posting",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/vehicles",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "vehicles"
+                  ]
+                },
+                "description": "From a trip, route/schedule/capacity default from it. Without `tripId`, provide `vehicleId` or `vehicleType`, `originLocationId`, `destinationLocationId`, `departureFrom`, `departureUntil`, `availableWeightKg`, `availableVolumeM3`.\n\n`pricingType`: FIXED | PER_KG | NEGOTIABLE. `publish: false` keeps it as a private DRAFT.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"tripId\": \"{{tripId}}\",\n  \"askingPrice\": 18000,\n  \"currency\": \"PHP\",\n  \"pricingType\": \"NEGOTIABLE\",\n  \"visibility\": \"NETWORK\",\n  \"notes\": \"Return trip capacity available\",\n  \"expiresAt\": \"{{in3d}}\",\n  \"publish\": true\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                      "  const body = pm.response.json();",
+                      "  const vehiclePostingIdVal = body?.data?.id;",
+                      "  if (vehiclePostingIdVal) pm.collectionVariables.set('vehiclePostingId', vehiclePostingIdVal);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Browse trucks",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/vehicles",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "vehicles"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1",
+                      "description": "Page number (default 1)",
+                      "disabled": true
+                    },
+                    {
+                      "key": "limit",
+                      "value": "20",
+                      "description": "Page size (default 20, max 100)",
+                      "disabled": true
+                    },
+                    {
+                      "key": "sort",
+                      "value": "createdAt",
+                      "description": "One of: createdAt, departureFrom, availableWeightKg, askingPrice",
+                      "disabled": true
+                    },
+                    {
+                      "key": "order",
+                      "value": "DESC",
+                      "description": "ASC | DESC (default DESC)",
+                      "disabled": true
+                    },
+                    {
+                      "key": "originLat",
+                      "value": "14.5995",
+                      "description": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "originLng",
+                      "value": "120.9842",
+                      "description": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "originRadiusKm",
+                      "value": "50",
+                      "description": "0.1 - 2000",
+                      "disabled": true
+                    },
+                    {
+                      "key": "destinationLat",
+                      "value": "13.7565",
+                      "description": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "destinationLng",
+                      "value": "121.0583",
+                      "description": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "destinationRadiusKm",
+                      "value": "50",
+                      "description": "0.1 - 2000",
+                      "disabled": true
+                    },
+                    {
+                      "key": "originProvince",
+                      "value": "Metro Manila",
+                      "description": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "originCity",
+                      "value": "",
+                      "description": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "destinationProvince",
+                      "value": "Batangas",
+                      "description": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "destinationCity",
+                      "value": "",
+                      "description": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "dateFrom",
+                      "value": "{{now}}",
+                      "description": "Window overlap filter",
+                      "disabled": true
+                    },
+                    {
+                      "key": "dateTo",
+                      "value": "{{in7d}}",
+                      "description": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "status",
+                      "value": "OPEN",
+                      "description": "DRAFT | OPEN | MATCHED | BOOKED | EXPIRED | CANCELLED",
+                      "disabled": true
+                    },
+                    {
+                      "key": "organizationId",
+                      "value": "",
+                      "description": "Filter by posting organization",
+                      "disabled": true
+                    },
+                    {
+                      "key": "includeOwn",
+                      "value": "false",
+                      "description": "Include your own postings (default false)",
+                      "disabled": true
+                    },
+                    {
+                      "key": "vehicleType",
+                      "value": "6W_TRUCK",
+                      "description": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "minWeightKg",
+                      "value": "1000",
+                      "description": "Minimum available capacity",
+                      "disabled": true
+                    },
+                    {
+                      "key": "minVolumeM3",
+                      "value": "5",
+                      "description": "",
+                      "disabled": true
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "My truck postings",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/vehicles/mine",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "vehicles",
+                    "mine"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1",
+                      "description": "Page number (default 1)",
+                      "disabled": true
+                    },
+                    {
+                      "key": "limit",
+                      "value": "20",
+                      "description": "Page size (default 20, max 100)",
+                      "disabled": true
+                    },
+                    {
+                      "key": "sort",
+                      "value": "createdAt",
+                      "description": "One of: createdAt, departureFrom, availableWeightKg, askingPrice",
+                      "disabled": true
+                    },
+                    {
+                      "key": "order",
+                      "value": "DESC",
+                      "description": "ASC | DESC (default DESC)",
+                      "disabled": true
+                    },
+                    {
+                      "key": "status",
+                      "value": "OPEN",
+                      "description": "DRAFT | OPEN | MATCHED | BOOKED | EXPIRED | CANCELLED",
+                      "disabled": true
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Get truck posting",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/vehicles/{{vehiclePostingId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "vehicles",
+                    "{{vehiclePostingId}}"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Update truck posting",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/vehicles/{{vehiclePostingId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "vehicles",
+                    "{{vehiclePostingId}}"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"askingPrice\": 17500,\n  \"notes\": \"Price drop\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Publish truck posting",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/vehicles/{{vehiclePostingId}}/publish",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "vehicles",
+                    "{{vehiclePostingId}}",
+                    "publish"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Cancel truck posting",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/vehicles/{{vehiclePostingId}}/cancel",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "vehicles",
+                    "{{vehiclePostingId}}",
+                    "cancel"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Loads",
+          "description": "",
+          "item": [
+            {
+              "name": "Create load posting",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/loads",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "loads"
+                  ]
+                },
+                "description": "From a load, route/windows/cargo default from it and its shipment. Without `loadId`, provide `pickupLocationId`, `deliveryLocationId`, `pickupFrom`, `pickupUntil`, `weightKg`, `volumeM3`, `requiredVehicleType`.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"loadId\": \"{{loadId}}\",\n  \"budget\": 15000,\n  \"currency\": \"PHP\",\n  \"visibility\": \"NETWORK\",\n  \"notes\": \"Pickup at loading dock 3\",\n  \"expiresAt\": \"{{in3d}}\",\n  \"publish\": true\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                      "  const body = pm.response.json();",
+                      "  const loadPostingIdVal = body?.data?.id;",
+                      "  if (loadPostingIdVal) pm.collectionVariables.set('loadPostingId', loadPostingIdVal);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Browse loads",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/loads",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "loads"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1",
+                      "description": "Page number (default 1)",
+                      "disabled": true
+                    },
+                    {
+                      "key": "limit",
+                      "value": "20",
+                      "description": "Page size (default 20, max 100)",
+                      "disabled": true
+                    },
+                    {
+                      "key": "sort",
+                      "value": "createdAt",
+                      "description": "One of: createdAt, pickupFrom, weightKg, budget",
+                      "disabled": true
+                    },
+                    {
+                      "key": "order",
+                      "value": "DESC",
+                      "description": "ASC | DESC (default DESC)",
+                      "disabled": true
+                    },
+                    {
+                      "key": "originLat",
+                      "value": "14.5995",
+                      "description": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "originLng",
+                      "value": "120.9842",
+                      "description": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "originRadiusKm",
+                      "value": "50",
+                      "description": "0.1 - 2000",
+                      "disabled": true
+                    },
+                    {
+                      "key": "destinationLat",
+                      "value": "13.7565",
+                      "description": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "destinationLng",
+                      "value": "121.0583",
+                      "description": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "destinationRadiusKm",
+                      "value": "50",
+                      "description": "0.1 - 2000",
+                      "disabled": true
+                    },
+                    {
+                      "key": "originProvince",
+                      "value": "Metro Manila",
+                      "description": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "originCity",
+                      "value": "",
+                      "description": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "destinationProvince",
+                      "value": "Batangas",
+                      "description": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "destinationCity",
+                      "value": "",
+                      "description": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "dateFrom",
+                      "value": "{{now}}",
+                      "description": "Window overlap filter",
+                      "disabled": true
+                    },
+                    {
+                      "key": "dateTo",
+                      "value": "{{in7d}}",
+                      "description": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "status",
+                      "value": "OPEN",
+                      "description": "DRAFT | OPEN | MATCHED | BOOKED | EXPIRED | CANCELLED",
+                      "disabled": true
+                    },
+                    {
+                      "key": "organizationId",
+                      "value": "",
+                      "description": "Filter by posting organization",
+                      "disabled": true
+                    },
+                    {
+                      "key": "includeOwn",
+                      "value": "false",
+                      "description": "Include your own postings (default false)",
+                      "disabled": true
+                    },
+                    {
+                      "key": "vehicleType",
+                      "value": "6W_TRUCK",
+                      "description": "Loads requiring this vehicle type (or none)",
+                      "disabled": true
+                    },
+                    {
+                      "key": "maxWeightKg",
+                      "value": "7000",
+                      "description": "Loads that fit within this capacity",
+                      "disabled": true
+                    },
+                    {
+                      "key": "maxVolumeM3",
+                      "value": "32",
+                      "description": "",
+                      "disabled": true
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "My load postings",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/loads/mine",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "loads",
+                    "mine"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1",
+                      "description": "Page number (default 1)",
+                      "disabled": true
+                    },
+                    {
+                      "key": "limit",
+                      "value": "20",
+                      "description": "Page size (default 20, max 100)",
+                      "disabled": true
+                    },
+                    {
+                      "key": "sort",
+                      "value": "createdAt",
+                      "description": "One of: createdAt, pickupFrom, weightKg, budget",
+                      "disabled": true
+                    },
+                    {
+                      "key": "order",
+                      "value": "DESC",
+                      "description": "ASC | DESC (default DESC)",
+                      "disabled": true
+                    },
+                    {
+                      "key": "status",
+                      "value": "OPEN",
+                      "description": "DRAFT | OPEN | MATCHED | BOOKED | EXPIRED | CANCELLED",
+                      "disabled": true
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Get load posting",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/loads/{{loadPostingId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "loads",
+                    "{{loadPostingId}}"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Update load posting",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/loads/{{loadPostingId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "loads",
+                    "{{loadPostingId}}"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"budget\": 16000\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Publish load posting",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/loads/{{loadPostingId}}/publish",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "loads",
+                    "{{loadPostingId}}",
+                    "publish"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Cancel load posting",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/loads/{{loadPostingId}}/cancel",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "loads",
+                    "{{loadPostingId}}",
+                    "cancel"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Offers",
+          "description": "`status`: PENDING | ACCEPTED | REJECTED | COUNTERED | WITHDRAWN | EXPIRED",
+          "item": [
+            {
+              "name": "Create offer",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/offers",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "offers"
+                  ]
+                },
+                "description": "Pairs a truck posting with a load posting; the sender owns one of them.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"vehiclePostingId\": \"{{vehiclePostingId}}\",\n  \"loadPostingId\": \"{{loadPostingId}}\",\n  \"amount\": 16500,\n  \"currency\": \"PHP\",\n  \"message\": \"Can pick up tomorrow morning\",\n  \"expiresAt\": \"{{in2d}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                      "  const body = pm.response.json();",
+                      "  const offerIdVal = body?.data?.id;",
+                      "  if (offerIdVal) pm.collectionVariables.set('offerId', offerIdVal);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Offers received",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/offers/received",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "offers",
+                    "received"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1",
+                      "description": "Page number (default 1)",
+                      "disabled": true
+                    },
+                    {
+                      "key": "limit",
+                      "value": "20",
+                      "description": "Page size (default 20, max 100)",
+                      "disabled": true
+                    },
+                    {
+                      "key": "sort",
+                      "value": "createdAt",
+                      "description": "One of: createdAt, amount",
+                      "disabled": true
+                    },
+                    {
+                      "key": "order",
+                      "value": "DESC",
+                      "description": "ASC | DESC (default DESC)",
+                      "disabled": true
+                    },
+                    {
+                      "key": "status",
+                      "value": "PENDING",
+                      "description": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "loadPostingId",
+                      "value": "{{loadPostingId}}",
+                      "description": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "vehiclePostingId",
+                      "value": "{{vehiclePostingId}}",
+                      "description": "",
+                      "disabled": true
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Offers sent",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/offers/sent",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "offers",
+                    "sent"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1",
+                      "description": "Page number (default 1)",
+                      "disabled": true
+                    },
+                    {
+                      "key": "limit",
+                      "value": "20",
+                      "description": "Page size (default 20, max 100)",
+                      "disabled": true
+                    },
+                    {
+                      "key": "sort",
+                      "value": "createdAt",
+                      "description": "One of: createdAt, amount",
+                      "disabled": true
+                    },
+                    {
+                      "key": "order",
+                      "value": "DESC",
+                      "description": "ASC | DESC (default DESC)",
+                      "disabled": true
+                    },
+                    {
+                      "key": "status",
+                      "value": "PENDING",
+                      "description": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "loadPostingId",
+                      "value": "{{loadPostingId}}",
+                      "description": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "vehiclePostingId",
+                      "value": "{{vehiclePostingId}}",
+                      "description": "",
+                      "disabled": true
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Get offer",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/offers/{{offerId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "offers",
+                    "{{offerId}}"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Counter offer",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/offers/{{offerId}}/counter",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "offers",
+                    "{{offerId}}",
+                    "counter"
+                  ]
+                },
+                "description": "Creates a new offer (stored as `offerId`) and marks the original COUNTERED.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"amount\": 17000,\n  \"message\": \"Meet in the middle?\",\n  \"expiresAt\": \"{{in2d}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                      "  const body = pm.response.json();",
+                      "  const offerIdVal = body?.data?.id;",
+                      "  if (offerIdVal) pm.collectionVariables.set('offerId', offerIdVal);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Accept offer",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/offers/{{offerId}}/accept",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "offers",
+                    "{{offerId}}",
+                    "accept"
+                  ]
+                },
+                "description": "Creates the booking (stored as `bookingId`) and assigns the load to the carrier trip atomically."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                      "  const body = pm.response.json();",
+                      "  const bookingIdVal = body?.data?.id;",
+                      "  if (bookingIdVal) pm.collectionVariables.set('bookingId', bookingIdVal);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Reject offer",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/offers/{{offerId}}/reject",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "offers",
+                    "{{offerId}}",
+                    "reject"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Withdraw offer",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/offers/{{offerId}}/withdraw",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "offers",
+                    "{{offerId}}",
+                    "withdraw"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Bookings",
+          "description": "`status`: PENDING | CONFIRMED | IN_PROGRESS | COMPLETED | CANCELLED",
+          "item": [
+            {
+              "name": "List bookings",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/bookings",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "bookings"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1",
+                      "description": "Page number (default 1)",
+                      "disabled": true
+                    },
+                    {
+                      "key": "limit",
+                      "value": "20",
+                      "description": "Page size (default 20, max 100)",
+                      "disabled": true
+                    },
+                    {
+                      "key": "sort",
+                      "value": "createdAt",
+                      "description": "One of: createdAt, agreedAmount",
+                      "disabled": true
+                    },
+                    {
+                      "key": "order",
+                      "value": "DESC",
+                      "description": "ASC | DESC (default DESC)",
+                      "disabled": true
+                    },
+                    {
+                      "key": "status",
+                      "value": "CONFIRMED",
+                      "description": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "role",
+                      "value": "shipper",
+                      "description": "shipper | carrier",
+                      "disabled": true
+                    },
+                    {
+                      "key": "tripId",
+                      "value": "{{tripId}}",
+                      "description": "",
+                      "disabled": true
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Get booking",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/bookings/{{bookingId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "bookings",
+                    "{{bookingId}}"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Cancel booking",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/bookings/{{bookingId}}/cancel",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "bookings",
+                    "{{bookingId}}",
+                    "cancel"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reason\": \"Truck issue\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Matching",
+      "description": "Scored matches, best first. `limit` 1-100 (default 20).",
+      "item": [
+        {
+          "name": "Trucks for my load posting",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/matching/load/{{loadPostingId}}/trucks?limit=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "matching",
+                "load",
+                "{{loadPostingId}}",
+                "trucks"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "1 - 100",
+                  "disabled": false
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Loads for my truck posting",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/matching/truck/{{vehiclePostingId}}/loads?limit=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "matching",
+                "truck",
+                "{{vehiclePostingId}}",
+                "loads"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "1 - 100",
+                  "disabled": false
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Documents",
+      "description": "Upload **Roles:** OWNER, ADMIN, OPERATIONS_MANAGER, DISPATCHER, DRIVER_MANAGER, DRIVER, FINANCE; delete **Roles:** OWNER, ADMIN, OPERATIONS_MANAGER, DISPATCHER, FINANCE\n\nAllowed files: application/pdf, image/png, image/jpeg, image/webp.",
+      "item": [
+        {
+          "name": "Upload document",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/documents",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "documents"
+              ]
+            },
+            "description": "Select a file for the `file` field before sending.",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": [],
+                  "description": "PDF, PNG, JPEG or WEBP"
+                },
+                {
+                  "key": "entityType",
+                  "value": "SHIPMENT",
+                  "type": "text",
+                  "description": "ORDER | SHIPMENT | LOAD | TRIP | VEHICLE | DRIVER | BOOKING"
+                },
+                {
+                  "key": "entityId",
+                  "value": "{{shipmentId}}",
+                  "type": "text"
+                },
+                {
+                  "key": "type",
+                  "value": "PROOF_OF_DELIVERY",
+                  "type": "text",
+                  "description": "PROOF_OF_DELIVERY | DELIVERY_RECEIPT | INVOICE | VEHICLE_DOCUMENT | DRIVER_DOCUMENT | SHIPMENT_ATTACHMENT | OTHER"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const body = pm.response.json();",
+                  "  const documentIdVal = body?.data?.id;",
+                  "  if (documentIdVal) pm.collectionVariables.set('documentId', documentIdVal);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List documents for entity",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/documents?entityType=SHIPMENT&entityId={{shipmentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "documents"
+              ],
+              "query": [
+                {
+                  "key": "entityType",
+                  "value": "SHIPMENT",
+                  "description": "Required",
+                  "disabled": false
+                },
+                {
+                  "key": "entityId",
+                  "value": "{{shipmentId}}",
+                  "description": "Required",
+                  "disabled": false
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number (default 1)",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Page size (default 20, max 100)",
+                  "disabled": true
+                },
+                {
+                  "key": "sort",
+                  "value": "createdAt",
+                  "description": "One of: createdAt",
+                  "disabled": true
+                },
+                {
+                  "key": "order",
+                  "value": "DESC",
+                  "description": "ASC | DESC (default DESC)",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get document",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/documents/{{documentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "documents",
+                "{{documentId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Download document",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/documents/{{documentId}}/download",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "documents",
+                "{{documentId}}",
+                "download"
+              ]
+            },
+            "description": "Streams the file. Use \"Send and Download\" in Postman."
+          }
+        },
+        {
+          "name": "Delete document",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/documents/{{documentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "documents",
+                "{{documentId}}"
+              ]
+            },
+            "description": "Returns 204."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "description": "",
+      "item": [
+        {
+          "name": "List notifications",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/notifications",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notifications"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number (default 1)",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Page size (default 20, max 100)",
+                  "disabled": true
+                },
+                {
+                  "key": "sort",
+                  "value": "createdAt",
+                  "description": "One of: createdAt",
+                  "disabled": true
+                },
+                {
+                  "key": "order",
+                  "value": "DESC",
+                  "description": "ASC | DESC (default DESC)",
+                  "disabled": true
+                },
+                {
+                  "key": "unreadOnly",
+                  "value": "true",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const first = (pm.response.json().data || [])[0];",
+                  "  if (first) pm.collectionVariables.set('notificationId', first.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Unread count",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/notifications/unread-count",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notifications",
+                "unread-count"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Mark all read",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/notifications/read-all",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notifications",
+                "read-all"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Mark one read",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/notifications/{{notificationId}}/read",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notifications",
+                "{{notificationId}}",
+                "read"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Billing",
+      "description": "",
+      "item": [
+        {
+          "name": "Organization billing summary",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/billing/summary",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "billing",
+                "summary"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "{{now}}",
+                  "description": "ISO date-time lower bound",
+                  "disabled": true
+                },
+                {
+                  "key": "to",
+                  "value": "{{in7d}}",
+                  "description": "ISO date-time upper bound",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "**Roles:** OWNER, ADMIN, FINANCE"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Audit",
+      "description": "",
+      "item": [
+        {
+          "name": "Organization audit logs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/audit-logs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "audit-logs"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number (default 1)",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Page size (default 20, max 100)",
+                  "disabled": true
+                },
+                {
+                  "key": "sort",
+                  "value": "createdAt",
+                  "description": "One of: createdAt",
+                  "disabled": true
+                },
+                {
+                  "key": "order",
+                  "value": "DESC",
+                  "description": "ASC | DESC (default DESC)",
+                  "disabled": true
+                },
+                {
+                  "key": "from",
+                  "value": "{{now}}",
+                  "description": "ISO date-time lower bound",
+                  "disabled": true
+                },
+                {
+                  "key": "to",
+                  "value": "{{in7d}}",
+                  "description": "ISO date-time upper bound",
+                  "disabled": true
+                },
+                {
+                  "key": "entityType",
+                  "value": "Order",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "entityId",
+                  "value": "{{orderId}}",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "action",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "userId",
+                  "value": "{{userId}}",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "**Roles:** OWNER, ADMIN, OPERATIONS_MANAGER"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin (platform)",
+      "description": "Requires a platform admin token (run **Auth / Login (platform admin)**).",
+      "item": [
+        {
+          "name": "Organizations",
+          "description": "",
+          "item": [
+            {
+              "name": "List organizations",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/admin/organizations",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "organizations"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1",
+                      "description": "Page number (default 1)",
+                      "disabled": true
+                    },
+                    {
+                      "key": "limit",
+                      "value": "20",
+                      "description": "Page size (default 20, max 100)",
+                      "disabled": true
+                    },
+                    {
+                      "key": "sort",
+                      "value": "createdAt",
+                      "description": "One of: createdAt, name",
+                      "disabled": true
+                    },
+                    {
+                      "key": "order",
+                      "value": "DESC",
+                      "description": "ASC | DESC (default DESC)",
+                      "disabled": true
+                    },
+                    {
+                      "key": "type",
+                      "value": "TRUCKING_COMPANY",
+                      "description": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "status",
+                      "value": "ACTIVE",
+                      "description": "ACTIVE | PENDING | SUSPENDED",
+                      "disabled": true
+                    },
+                    {
+                      "key": "search",
+                      "value": "",
+                      "description": "",
+                      "disabled": true
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Create organization",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/admin/organizations",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "organizations"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Mindanao Cargo Express {{$timestamp}}\",\n  \"type\": \"TRUCKING_COMPANY\",\n  \"email\": \"hello@mindanaocargo.example.com\",\n  \"phone\": \"+63821234567\",\n  \"owner\": {\n    \"email\": \"owner.{{$timestamp}}@mindanaocargo.example.com\",\n    \"firstName\": \"Datu\",\n    \"lastName\": \"Ampatuan\",\n    \"password\": \"StrongPass123\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                      "  const body = pm.response.json();",
+                      "  const adminOrganizationIdVal = body?.data?.id;",
+                      "  if (adminOrganizationIdVal) pm.collectionVariables.set('adminOrganizationId', adminOrganizationIdVal);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Get organization",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/admin/organizations/{{adminOrganizationId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "organizations",
+                    "{{adminOrganizationId}}"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Update organization status",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/admin/organizations/{{adminOrganizationId}}/status",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "organizations",
+                    "{{adminOrganizationId}}",
+                    "status"
+                  ]
+                },
+                "description": "`status`: ACTIVE | PENDING | SUSPENDED",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"ACTIVE\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Update organization commission",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/admin/organizations/{{adminOrganizationId}}/commission",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "organizations",
+                    "{{adminOrganizationId}}",
+                    "commission"
+                  ]
+                },
+                "description": "`type`: PERCENTAGE | FIXED | NONE, or `null` to reset to the platform default. `value` is required unless type is NONE or null.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"type\": \"PERCENTAGE\",\n  \"value\": 4\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Users",
+          "description": "",
+          "item": [
+            {
+              "name": "List users",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/admin/users",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "users"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1",
+                      "description": "Page number (default 1)",
+                      "disabled": true
+                    },
+                    {
+                      "key": "limit",
+                      "value": "20",
+                      "description": "Page size (default 20, max 100)",
+                      "disabled": true
+                    },
+                    {
+                      "key": "sort",
+                      "value": "createdAt",
+                      "description": "One of: createdAt, email",
+                      "disabled": true
+                    },
+                    {
+                      "key": "order",
+                      "value": "DESC",
+                      "description": "ASC | DESC (default DESC)",
+                      "disabled": true
+                    },
+                    {
+                      "key": "search",
+                      "value": "",
+                      "description": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "status",
+                      "value": "ACTIVE",
+                      "description": "ACTIVE | INVITED | SUSPENDED | DISABLED",
+                      "disabled": true
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Get user",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/admin/users/{{userId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "users",
+                    "{{userId}}"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Update user status",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/admin/users/{{userId}}/status",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "users",
+                    "{{userId}}",
+                    "status"
+                  ]
+                },
+                "description": "`status`: ACTIVE | INVITED | SUSPENDED | DISABLED",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"SUSPENDED\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Platform audit logs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/audit-logs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "audit-logs"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number (default 1)",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Page size (default 20, max 100)",
+                  "disabled": true
+                },
+                {
+                  "key": "sort",
+                  "value": "createdAt",
+                  "description": "One of: createdAt",
+                  "disabled": true
+                },
+                {
+                  "key": "order",
+                  "value": "DESC",
+                  "description": "ASC | DESC (default DESC)",
+                  "disabled": true
+                },
+                {
+                  "key": "from",
+                  "value": "{{now}}",
+                  "description": "ISO date-time lower bound",
+                  "disabled": true
+                },
+                {
+                  "key": "to",
+                  "value": "{{in7d}}",
+                  "description": "ISO date-time upper bound",
+                  "disabled": true
+                },
+                {
+                  "key": "organizationId",
+                  "value": "{{organizationId}}",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "entityType",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "entityId",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "action",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "userId",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Platform billing summary",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/billing/summary",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "billing",
+                "summary"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "{{now}}",
+                  "description": "ISO date-time lower bound",
+                  "disabled": true
+                },
+                {
+                  "key": "to",
+                  "value": "{{in7d}}",
+                  "description": "ISO date-time upper bound",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
