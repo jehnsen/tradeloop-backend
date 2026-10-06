@@ -219,6 +219,7 @@ export class AuthService {
         .map((m) => ({
           membershipId: m.id,
           role: m.role,
+          subjectRef: m.subjectRef,
           organization: {
             id: m.organizationId,
             name: m.organization!.name,

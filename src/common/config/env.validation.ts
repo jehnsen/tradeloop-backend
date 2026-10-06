@@ -7,6 +7,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  Matches,
   Max,
   Min,
   MinLength,
@@ -31,6 +32,14 @@ export class EnvironmentVariables {
   @IsString() LOG_LEVEL = 'info';
   @Transform(toBool) @IsBoolean() SWAGGER_ENABLED = true;
   @Transform(toBool) @IsBoolean() TRUST_PROXY = false;
+
+  /** Demo clock start ("YYYY-MM-DDTHH:mm", Manila time). Unset = real time. */
+  @Transform(({ value }) => value || undefined)
+  @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/)
+  OPS_CLOCK_ANCHOR?: string;
+  /** Allows owners of demo organizations to reset their operations data to the seed. */
+  @Transform(toBool) @IsBoolean() OPS_DEMO_RESET = false;
 
   @IsString() DB_HOST = 'localhost';
   @Type(() => Number) @IsInt() DB_PORT = 5432;

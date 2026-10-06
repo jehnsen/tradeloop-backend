@@ -29,6 +29,7 @@ import { LocationsModule } from './locations/locations.module';
 import { MarketplaceModule } from './marketplace/marketplace.module';
 import { MatchingModule } from './matching/matching.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { OpsModule } from './ops/ops.module';
 import { OrdersModule } from './orders/orders.module';
 import { OrganizationsModule } from './organizations/organizations.module';
 import { QueueModule } from './queue/queue.module';
@@ -122,6 +123,7 @@ type LoggedRequest = Request & { user?: AuthContext; id?: string };
     NotificationsModule,
     BillingModule,
     DocumentsModule,
+    OpsModule,
     HealthModule,
   ],
   providers: [

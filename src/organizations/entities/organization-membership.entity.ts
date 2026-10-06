@@ -38,4 +38,11 @@ export class OrganizationMembership extends AppBaseEntity {
     default: MembershipStatus.ACTIVE,
   })
   status: MembershipStatus;
+
+  /**
+   * Operations record this login acts as: the driver (DRV-…) for a DRIVER, the customer (CUS-…) for
+   * a CUSTOMER. Null for office roles.
+   */
+  @Column({ type: 'varchar', length: 40, nullable: true })
+  subjectRef: string | null;
 }

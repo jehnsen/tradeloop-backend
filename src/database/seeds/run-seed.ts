@@ -20,6 +20,7 @@ import { Trip, TripStatus } from '../../trips/entities/trip.entity';
 import { User } from '../../users/entities/user.entity';
 import { Vehicle } from '../../vehicles/vehicle.entity';
 import dataSource, { appConfig } from '../data-source';
+import { seedLucenaFresh } from './lucena-fresh';
 
 /**
  * DEVELOPMENT ONLY. Creates demo tenants, users and marketplace data.
@@ -497,15 +498,15 @@ async function main(): Promise<void> {
   const ds: DataSource = await dataSource.initialize();
   try {
     const exists = await ds.getRepository(User).exists({ where: { email: ADMIN_EMAIL } });
-    if (exists) {
-      console.log(`Seed skipped: ${ADMIN_EMAIL} already exists.`);
-      return;
-    }
-    const users = await ds.transaction(seed);
+    const users = exists ? [] : await ds.transaction(seed);
+    if (exists) console.log(`Marketplace seed skipped: ${ADMIN_EMAIL} already exists.`);
+    const lucena = await ds.transaction((m) => seedLucenaFresh(m, PASSWORD));
+    if (!lucena.length) console.log('TradeLoop demo seed skipped: Lucena Fresh already exists.');
+    if (!users.length && !lucena.length) return;
     console.log(
       'Development seed complete. All accounts use SEED_PASSWORD (default "DevPassword123!"):',
     );
-    for (const line of users) console.log(`  ${line}`);
+    for (const line of [...users, ...lucena]) console.log(`  ${line}`);
   } finally {
     await ds.destroy();
   }

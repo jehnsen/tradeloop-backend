@@ -79,6 +79,7 @@ export class MembershipsService {
           userId: user.id,
           role: dto.role,
           status: MembershipStatus.ACTIVE,
+          subjectRef: dto.subjectRef ?? null,
         }),
       );
     });
@@ -111,11 +112,16 @@ export class MembershipsService {
         membership.role === Role.OWNER &&
         ((dto.role && dto.role !== Role.OWNER) || dto.status === MembershipStatus.SUSPENDED);
       if (losesOwner) await this.assertNotLastOwner(manager, ctx.organizationId);
-      const before = { role: membership.role, status: membership.status };
+      const before = {
+        role: membership.role,
+        status: membership.status,
+        subjectRef: membership.subjectRef,
+      };
       Object.assign(
         membership,
         dto.role ? { role: dto.role } : {},
         dto.status ? { status: dto.status } : {},
+        dto.subjectRef !== undefined ? { subjectRef: dto.subjectRef } : {},
       );
       const saved = await repo.save(membership);
       await this.audit.record(

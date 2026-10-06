@@ -2,6 +2,7 @@ import { INestApplication, RequestMethod } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import compression from 'compression';
 import helmet from 'helmet';
 import { Logger } from 'nestjs-pino';
 import { AppConfig } from './common/config/configuration';
@@ -40,6 +41,8 @@ export async function configureApp(app: INestApplication): Promise<void> {
   express.useBodyParser('json', { limit: '1mb' });
   app.use(requestContextMiddleware);
   app.use(helmet());
+  // The ops snapshot is a few MB of JSON; it compresses about tenfold.
+  app.use(compression());
   app.enableCors({
     origin: config.get('corsOrigins', { infer: true }),
     credentials: true,

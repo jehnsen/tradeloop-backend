@@ -17,6 +17,12 @@ export enum Role {
   FINANCE = 'FINANCE',
   VIEWER = 'VIEWER',
   PLATFORM_ADMIN = 'PLATFORM_ADMIN',
+  // TradeLoop operations desks
+  SALES = 'SALES',
+  WAREHOUSE = 'WAREHOUSE',
+  PROCUREMENT = 'PROCUREMENT',
+  /** A customer's portal login; the membership's subjectRef is their customer record (CUS-…). */
+  CUSTOMER = 'CUSTOMER',
 }
 
 export const RoleGroups = {

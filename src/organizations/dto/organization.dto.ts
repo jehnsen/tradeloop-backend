@@ -136,6 +136,8 @@ export class UpdateCommissionDto {
   value?: number;
 }
 
+const SUBJECT_REF = /^(DRV|CUS)-[A-Z0-9-]{1,32}$/;
+
 export class AddMemberDto {
   @trim()
   @IsEmail()
@@ -162,6 +164,11 @@ export class AddMemberDto {
   @IsString()
   @Matches(PASSWORD_RULE, { message: PASSWORD_MESSAGE })
   password?: string;
+
+  /** Operations record the login acts as: DRV-… for a DRIVER, CUS-… for a CUSTOMER. */
+  @IsOptional()
+  @Matches(SUBJECT_REF, { message: 'subjectRef must be a driver (DRV-…) or customer (CUS-…) id' })
+  subjectRef?: string;
 }
 
 export class UpdateMemberDto {
@@ -172,6 +179,11 @@ export class UpdateMemberDto {
   @IsOptional()
   @IsIn([MembershipStatus.ACTIVE, MembershipStatus.SUSPENDED])
   status?: MembershipStatus;
+
+  /** Driver or customer record the login acts as; null unlinks it. */
+  @IsOptional()
+  @Matches(SUBJECT_REF, { message: 'subjectRef must be a driver (DRV-…) or customer (CUS-…) id' })
+  subjectRef?: string | null;
 }
 
 export class AddPartnerDto {

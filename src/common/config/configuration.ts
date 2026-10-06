@@ -8,6 +8,10 @@ export const configuration = (env: EnvironmentVariables) => ({
   logLevel: env.LOG_LEVEL,
   swaggerEnabled: env.SWAGGER_ENABLED,
   trustProxy: env.TRUST_PROXY,
+  ops: {
+    clockAnchor: env.OPS_CLOCK_ANCHOR ?? null,
+    demoReset: env.OPS_DEMO_RESET,
+  },
   db: {
     host: env.DB_HOST,
     port: env.DB_PORT,

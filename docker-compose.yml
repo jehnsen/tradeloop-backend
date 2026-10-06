@@ -13,6 +13,9 @@ x-app-env: &app-env
   CORS_ORIGINS: ${CORS_ORIGINS:-*}
   SWAGGER_ENABLED: ${SWAGGER_ENABLED:-true}
   STORAGE_LOCAL_PATH: /app/storage
+  # TradeLoop operations: demo clock (empty = real time) and demo-organization reset
+  OPS_CLOCK_ANCHOR: ${OPS_CLOCK_ANCHOR:-}
+  OPS_DEMO_RESET: ${OPS_DEMO_RESET:-false}
 
 x-app: &app
   build: .

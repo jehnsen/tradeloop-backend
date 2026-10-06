@@ -14,6 +14,7 @@ export default async function globalSetup(): Promise<void> {
 
   const ds = new DataSource(buildDataSourceOptions(config.db));
   await ds.initialize();
+  await ds.query('DROP SCHEMA IF EXISTS ops CASCADE');
   await ds.query('DROP SCHEMA IF EXISTS public CASCADE');
   await ds.query('CREATE SCHEMA public');
   await ds.runMigrations({ transaction: 'all' });
